@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M-Movie</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- local css  -->
+  <link rel="stylesheet" href="./blogs-assets/main.css">
+
+</head>
+<body>
+  <!-- Background Animation Elements -->
+  <ul class="bg-bubbles">
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+  </ul>
+
+  <!-- Check if we're on a single post page -->
+  <div id="mainPage" style="display: none;">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-custom">
+      <div class="container">
+        <a class="navbar-brand fw-bold mk-nav" href="#">
+          <img src="./img/mmovie-logo.png" width="60px" height="60px">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <!-- Search Bar -->
+          <div class="d-flex ms-auto me-3">
+            <div class="input-group search-container">
+              <input type="text" id="searchInput" class="form-control search-input" placeholder="Search movies...">
+              <button class="btn btn-outline-light search-btn" onclick="performSearch()">
+                <i class="fas fa-search"></i>
+              </button>
+              <button class="btn btn-outline-light search-clear" onclick="clearSearch()" style="display: none;">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+          
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <!-- <a class="nav-link mk-nav" href="#">About</a> -->
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container my-5">
+      <div class="text-center mb-5">
+        <h1 class="page-title">M-Movie</h1>
+        <p class="lead text-white">မည်သည့် Member ကြေး Group ဝင်ကြေးများ ပေးစရာမလိုပဲ M-Movie Telegram Channel မှာ ရုပ်ရှင်ဇာတ်ကားကောင်းများကို ဝင်ရောက်ကြည့်နိုင်ပါပြီ။</p>
+      </div>
+      
+      <!-- Search Results Indicator -->
+      <div id="searchResults" class="mb-4" style="display: none;">
+        <div class="alert alert-info d-flex justify-content-between align-items-center">
+          <span id="searchResultsText"></span>
+          <button class="btn btn-sm btn-outline-dark" onclick="clearSearch()">
+            <i class="fas fa-times me-1"></i>Clear Search
+          </button>
+        </div>
+      </div>
+      
+      <!-- Posts Grid -->
+      <div id="postList" class="row g-4">
+        <!-- Loading Spinner -->
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+        </div>
+      </div>
+      
+      <!-- Pagination -->
+      <nav id="pagination" class="mt-5 d-flex justify-content-center" style="display: none;">
+        <ul class="pagination">
+          <li class="page-item">
+            <a class="page-link pagination-btn" href="#" data-page="prev">
+              <i class="fas fa-chevron-left"></i>
+            </a>
+          </li>
+          <!-- Page numbers will be inserted here -->
+          <li class="page-item">
+            <a class="page-link pagination-btn" href="#" data-page="next">
+              <i class="fas fa-chevron-right"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-white py-4 mt-5" style="background: rgba(0,0,0,0.2);">
+      <div class="container">
+        <div class="row">
+          <div class="col-md-6">
+            <img src="./img/mmovie-logo.png" width="60px" height="60px">
+            <p>Your ultimate destination for streaming the latest movies and TV shows in high quality.</p>
+          </div>
+          <div class="col-md-6 text-md-end">
+            <p>Made with ❤️ by TechLab &copy; 2025 M-Movie All rights reserved.</p>
+            <div class="social-links">
+              <a href="https://www.facebook.com/m.movie.channel" class="text-white me-3" target="_blank"><i class="fab fa-facebook-f"></i></a>
+              <a href="https://t.me/m_movie_channel" class="text-white me-3" target="_blank"><i class="fab fa-telegram"></i></a>
+              <a href="https://m-movie.myangateway.site" class="text-white" target="_blank"><i class="fas fa-globe"></i></a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Single Post Page -->
+  <div id="singlePostPage" style="display: none;">
+    <div class="container my-4">
+      <div class="single-post-container">
+        <div class="single-post-header">
+          <h1 id="singlePostTitle"></h1>
+          <p class="mb-0" id="singlePostDate"></p>
+        </div>
+        
+        <div class="single-post-content">
+          <img id="singlePostImage" class="single-post-image">
+          
+          <!-- Trailer Video Section -->
+          <div id="trailerContainer" class="trailer-container" style="display: none;">
+            <div class="trailer-header">
+              <h3><i class="fas fa-play-circle me-2"></i>Movie Trailer</h3>
+              <button class="btn btn-sm btn-outline-light close-trailer-btn" onclick="closeTrailer()">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="trailer-video-wrapper">
+              <div id="trailerVideo"></div>
+            </div>
+          </div>
+          
+          <div id="singlePostContent" style="line-height: 1.8; font-size: 1.1rem;"></div>
+          
+          <div class="single-post-actions">
+            <!-- Watch Trailer Button -->
+            <button id="singlePostTrailerBtn" class="btn btn-warning btn-custom btn-warning-custom" onclick="showTrailer()" style="display: none;">
+              <i class="fas fa-play-circle me-2"></i>Watch Trailer
+            </button>
+            
+            <!-- Watch Now Button -->
+            <a id="singlePostWatch" class="btn btn-success btn-custom btn-success-custom" target="_blank" style="display: none;">
+              <i class="fas fa-play me-2"></i>Watch Now
+            </a>
+            
+            <!-- Share Button -->
+            <button class="btn btn-primary btn-custom btn-primary-custom" onclick="shareCurrentPost()">
+              <i class="fas fa-share-alt me-2"></i>Share Post
+            </button>
+            
+            <!-- Main Page Button -->
+            <a href="?" class="btn btn-secondary btn-custom btn-secondary-custom">
+              <i class="fas fa-home me-2"></i>Main Page
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- YouTube IFrame API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="./blogs-assets/main.js"></script>
+</body>
+</html>
