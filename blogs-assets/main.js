@@ -9,9 +9,13 @@ let autoRefreshInterval;
 let currentTrailerLink = '';
 let youtubePlayer = null;
 
+// ==================== NEW: GENRE FILTER VARIABLES ====================
+let selectedGenre = null;
+let allGenres = [];
+let genrePostCounts = {};
+
 // YouTube Player Management
 function onYouTubeIframeAPIReady() {
-    // YouTube API loaded
     console.log('YouTube API ready');
 }
 
@@ -21,11 +25,9 @@ function showTrailer() {
     const trailerContainer = document.getElementById('trailerContainer');
     const trailerVideoDiv = document.getElementById('trailerVideo');
     
-    // Extract YouTube video ID from different URL formats
     let videoId = extractYouTubeVideoId(currentTrailerLink);
     
     if (!videoId) {
-        // If not a YouTube link, use iframe with the provided URL
         trailerVideoDiv.innerHTML = `
             <iframe 
                 src="${currentTrailerLink}" 
@@ -35,7 +37,6 @@ function showTrailer() {
             </iframe>
         `;
     } else {
-        // Create YouTube player
         if (youtubePlayer) {
             youtubePlayer.destroy();
         }
@@ -58,11 +59,7 @@ function showTrailer() {
     }
     
     trailerContainer.style.display = 'block';
-    
-    // Scroll to trailer section
     trailerContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    
-    // Hide the trailer button and show close button
     document.getElementById('singlePostTrailerBtn').style.display = 'none';
 }
 
@@ -70,17 +67,12 @@ function closeTrailer() {
     const trailerContainer = document.getElementById('trailerContainer');
     const trailerVideoDiv = document.getElementById('trailerVideo');
     
-    // Stop video if it's playing
     if (youtubePlayer && youtubePlayer.stopVideo) {
         youtubePlayer.stopVideo();
     }
     
-    // Clear iframe content
     trailerVideoDiv.innerHTML = '';
-    
     trailerContainer.style.display = 'none';
-    
-    // Show trailer button again
     document.getElementById('singlePostTrailerBtn').style.display = 'inline-block';
 }
 
@@ -89,11 +81,9 @@ function onPlayerReady(event) {
 }
 
 function onPlayerStateChange(event) {
-    // Optional: Handle player state changes
     console.log('Player state changed:', event.data);
 }
 
-// Extract YouTube video ID from URL
 function extractYouTubeVideoId(url) {
     const patterns = [
         /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
@@ -111,7 +101,241 @@ function extractYouTubeVideoId(url) {
     return null;
 }
 
-// Search functionality
+// ==================== NEW: GENRE FILTER FUNCTIONS ====================
+function extractAllGenres() {
+    allGenres = [];
+    genrePostCounts = {};
+    
+    allPosts.forEach(post => {
+        if (post.Genres && post.Genres.trim() !== '') {
+            const genres = post.Genres.split(',').map(g => g.trim()).filter(g => g);
+            genres.forEach(genre => {
+                if (!allGenres.includes(genre)) {
+                    allGenres.push(genre);
+                    genrePostCounts[genre] = 1;
+                } else {
+                    genrePostCounts[genre]++;
+                }
+            });
+        }
+    });
+    
+    // Sort genres alphabetically
+    allGenres.sort();
+}
+
+function populateGenreDropdown() {
+    const dropdownMenu = document.getElementById('genreDropdownMenu');
+    const loadingElement = dropdownMenu.querySelector('.loading-genres');
+    
+    if (loadingElement) {
+        loadingElement.remove();
+    }
+    
+    // Add genre items
+    allGenres.forEach(genre => {
+        const count = genrePostCounts[genre] || 0;
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <a class="dropdown-item genre-filter-item" href="#" data-genre="${genre}">
+                ${genre}
+                <span class="genre-count">${count}</span>
+            </a>
+        `;
+        dropdownMenu.appendChild(li);
+    });
+    
+    // Add event listeners to genre items
+    document.querySelectorAll('.genre-filter-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const genre = this.getAttribute('data-genre');
+            filterByGenre(genre);
+            
+            // Close dropdown on mobile
+            const dropdown = document.getElementById('genreDropdown');
+            const bsDropdown = bootstrap.Dropdown.getInstance(dropdown);
+            if (bsDropdown && window.innerWidth < 768) {
+                bsDropdown.hide();
+            }
+        });
+    });
+}
+
+function filterByGenre(genre) {
+    if (genre === 'all') {
+        clearGenreFilter();
+        return;
+    }
+    
+    selectedGenre = genre;
+    
+    // Update button text
+    const dropdownBtn = document.getElementById('genreDropdown');
+    dropdownBtn.innerHTML = `<i class="fas fa-filter me-1"></i>${genre}`;
+    
+    // Update active filters display
+    updateActiveFiltersDisplay();
+    
+    // Apply filter
+    applyFilters();
+}
+
+function clearGenreFilter() {
+    selectedGenre = null;
+    
+    // Reset button text
+    const dropdownBtn = document.getElementById('genreDropdown');
+    dropdownBtn.innerHTML = `<i class="fas fa-film me-1"></i></i>Movie Genres`;
+    
+    // Update active filters display
+    updateActiveFiltersDisplay();
+    
+    // Apply filter (which will remove genre filter)
+    applyFilters();
+}
+
+function clearAllFilters() {
+    selectedGenre = null;
+    clearSearch();
+    
+    // Reset button text
+    const dropdownBtn = document.getElementById('genreDropdown');
+    dropdownBtn.innerHTML = `<i class="fas fa-film me-1"></i>Movie Genres`;
+    
+    // Update active filters display
+    updateActiveFiltersDisplay();
+    
+    // Load all posts
+    renderPosts(currentPage);
+    renderPagination();
+}
+
+function updateActiveFiltersDisplay() {
+    const activeFiltersDiv = document.getElementById('activeFilters');
+    const activeFiltersText = document.getElementById('activeFiltersText');
+    const clearGenreBtn = document.getElementById('clearGenreFilterBtn');
+    
+    let filters = [];
+    
+    if (selectedGenre) {
+        filters.push(`Genre: <strong>${selectedGenre}</strong>`);
+        clearGenreBtn.style.display = 'inline-block';
+    } else {
+        clearGenreBtn.style.display = 'none';
+    }
+    
+    if (isSearching) {
+        const searchInput = document.getElementById('searchInput');
+        filters.push(`Search: <strong>"${searchInput.value}"</strong>`);
+    }
+    
+    if (filters.length > 0) {
+        activeFiltersText.innerHTML = `Active filters: ${filters.join(' • ')}`;
+        activeFiltersDiv.style.display = 'block';
+    } else {
+        activeFiltersDiv.style.display = 'none';
+    }
+}
+
+function applyFilters() {
+    if (selectedGenre) {
+        // Filter by genre
+        filteredPosts = allPosts.filter(post => {
+            if (!post.Genres) return false;
+            const genres = post.Genres.split(',').map(g => g.trim());
+            return genres.includes(selectedGenre);
+        });
+    } else {
+        // No genre filter
+        filteredPosts = allPosts;
+    }
+    
+    // Apply search filter if active
+    if (isSearching) {
+        const searchInput = document.getElementById('searchInput');
+        const searchTerm = searchInput.value.trim().toLowerCase();
+        
+        filteredPosts = filteredPosts.filter(post => {
+            const title = post.Title?.toLowerCase() || '';
+            const paragraph = post.Paragraph?.toLowerCase() || '';
+            const genres = post.Genres?.toLowerCase() || '';
+            
+            return title.includes(searchTerm) || 
+                   paragraph.includes(searchTerm) || 
+                   genres.includes(searchTerm);
+        });
+    }
+    
+    currentPage = 1;
+    renderPosts(currentPage);
+    renderPagination();
+    updateActiveFiltersDisplay();
+}
+
+// ==================== GENRES AND RATING FUNCTIONS ====================
+function displayGenres(genresString) {
+    const genresContainer = document.getElementById('genresContainer');
+    const genresTags = document.getElementById('postGenres');
+    
+    if (!genresString || genresString.trim() === '') {
+        genresContainer.style.display = 'none';
+        return;
+    }
+    
+    const genres = genresString.split(',').map(g => g.trim()).filter(g => g);
+    
+    if (genres.length === 0) {
+        genresContainer.style.display = 'none';
+        return;
+    }
+    
+    genresTags.innerHTML = '';
+    genres.forEach(genre => {
+        const tag = document.createElement('span');
+        tag.className = 'genre-tag';
+        tag.textContent = genre;
+        genresTags.appendChild(tag);
+    });
+    
+    genresContainer.style.display = 'block';
+}
+
+function displayRating(rating) {
+    const ratingContainer = document.getElementById('ratingContainer');
+    const ratingStars = document.getElementById('postRatingStars');
+    const ratingText = document.getElementById('postRatingText');
+    
+    if (!rating || parseFloat(rating) <= 0) {
+        ratingContainer.style.display = 'none';
+        return;
+    }
+    
+    const numericRating = parseFloat(rating);
+    
+    // Create star display
+    ratingStars.innerHTML = '';
+    for (let i = 1; i <= 5; i++) {
+        const star = document.createElement('span');
+        star.className = 'rating-star';
+        if (i <= numericRating) {
+            star.innerHTML = '<i class="fas fa-star"></i>';
+            star.style.color = '#ffc107';
+        } else if (i - 0.5 <= numericRating) {
+            star.innerHTML = '<i class="fas fa-star-half-alt"></i>';
+            star.style.color = '#ffc107';
+        } else {
+            star.innerHTML = '<i class="far fa-star"></i>';
+            star.style.color = '#ccc';
+        }
+        ratingStars.appendChild(star);
+    }
+    
+    ratingText.textContent = ` ${numericRating.toFixed(1)}/5`;
+    ratingContainer.style.display = 'block';
+}
+
+// ==================== UPDATED SEARCH FUNCTIONALITY ====================
 function performSearch() {
     const searchInput = document.getElementById('searchInput');
     const searchTerm = searchInput.value.trim().toLowerCase();
@@ -122,19 +346,14 @@ function performSearch() {
         return;
     }
     
-    filteredPosts = allPosts.filter(post => {
-        const title = post.Title?.toLowerCase() || '';
-        const paragraph = post.Paragraph?.toLowerCase() || '';
-        
-        return title.includes(searchTerm) || paragraph.includes(searchTerm);
-    });
-    
     isSearching = true;
     currentPage = 1;
     
-    // Show search results indicator
     const searchResultsDiv = document.getElementById('searchResults');
     const searchResultsText = document.getElementById('searchResultsText');
+    
+    // Apply both search and genre filters
+    applyFilters();
     
     if (filteredPosts.length > 0) {
         searchResultsText.textContent = `Found ${filteredPosts.length} result(s) for "${searchTerm}"`;
@@ -145,8 +364,7 @@ function performSearch() {
     searchResultsDiv.style.display = 'block';
     clearBtn.style.display = 'block';
     
-    renderPosts(currentPage);
-    renderPagination();
+    updateActiveFiltersDisplay();
 }
 
 function clearSearch() {
@@ -156,34 +374,20 @@ function clearSearch() {
     
     searchInput.value = '';
     isSearching = false;
-    currentPage = 1;
     
     searchResultsDiv.style.display = 'none';
     clearBtn.style.display = 'none';
     
-    renderPosts(currentPage);
-    renderPagination();
+    // Apply only genre filter if active
+    applyFilters();
 }
 
-// Enter key support for search
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                performSearch();
-            }
-        });
-    }
-});
-
-// Auto refresh functionality
+// ==================== AUTO REFRESH ====================
 function startAutoRefresh() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
     }
     
-    // Check for new posts every 30 seconds
     autoRefreshInterval = setInterval(() => {
         checkForNewPosts();
     }, 30000);
@@ -200,13 +404,11 @@ async function checkForNewPosts() {
         
         const newPosts = await res.json();
         
-        // Check if there are new posts
         if (newPosts.length > allPosts.length) {
             const newPostCount = newPosts.length - allPosts.length;
             console.log(`Found ${newPostCount} new posts`);
             showNewPostNotification(newPostCount);
             
-            // Update and sort by latest
             allPosts = newPosts.sort((a, b) => {
                 try {
                     return new Date(b.CreatedAt) - new Date(a.CreatedAt);
@@ -217,20 +419,12 @@ async function checkForNewPosts() {
             
             postsCache = allPosts;
             
-            // If currently searching, re-apply search
-            if (isSearching) {
-                const searchInput = document.getElementById('searchInput');
-                const searchTerm = searchInput.value.trim().toLowerCase();
-                if (searchTerm) {
-                    performSearch();
-                } else {
-                    renderPosts(currentPage);
-                    renderPagination();
-                }
-            } else {
-                renderPosts(currentPage);
-                renderPagination();
-            }
+            // Extract genres from new posts
+            extractAllGenres();
+            populateGenreDropdown();
+            
+            // Apply current filters
+            applyFilters();
         }
         
     } catch (error) {
@@ -239,11 +433,9 @@ async function checkForNewPosts() {
 }
 
 function showNewPostNotification(count) {
-    // Remove existing notifications
     const existingNotifs = document.querySelectorAll('.new-post-notification');
     existingNotifs.forEach(notif => notif.remove());
     
-    // Create a subtle notification
     const notification = document.createElement('div');
     notification.className = 'new-post-notification alert alert-info alert-dismissible fade show position-fixed';
     notification.style.top = '80px';
@@ -261,7 +453,6 @@ function showNewPostNotification(count) {
     
     document.body.appendChild(notification);
     
-    // Auto remove after 5 seconds
     setTimeout(() => {
         if (notification.parentElement) {
             notification.remove();
@@ -275,7 +466,7 @@ function refreshPosts() {
     notifications.forEach(notif => notif.remove());
 }
 
-// Check if we're on a single post page
+// ==================== PAGE MANAGEMENT ====================
 function checkPageType() {
     const urlParams = new URLSearchParams(window.location.search);
     const postId = urlParams.get('post');
@@ -284,17 +475,14 @@ function checkPageType() {
     currentPage = page;
     
     if (postId) {
-        // We're on a single post page - disable auto refresh
         document.getElementById('mainPage').style.display = 'none';
         document.getElementById('singlePostPage').style.display = 'block';
         loadSinglePost(postId);
         
-        // Stop auto refresh
         if (autoRefreshInterval) {
             clearInterval(autoRefreshInterval);
         }
     } else {
-        // We're on the main page - enable auto refresh
         document.getElementById('mainPage').style.display = 'block';
         document.getElementById('singlePostPage').style.display = 'none';
         loadPosts();
@@ -306,7 +494,6 @@ async function loadPosts() {
     try {
         const list = document.getElementById("postList");
         
-        // Show loading spinner
         list.innerHTML = `
         <div class="loading-spinner">
             <div class="spinner"></div>
@@ -326,7 +513,6 @@ async function loadPosts() {
         
         allPosts = data;
         
-        // Sort posts by date (newest first)
         allPosts.sort((a, b) => {
             try {
                 return new Date(b.CreatedAt) - new Date(a.CreatedAt);
@@ -336,7 +522,7 @@ async function loadPosts() {
             }
         });
         
-        postsCache = allPosts; // Keep backup for single post view
+        postsCache = allPosts;
         
         if (allPosts.length === 0) {
         list.innerHTML = `
@@ -352,6 +538,13 @@ async function loadPosts() {
         document.getElementById('pagination').style.display = 'none';
         return;
         }
+        
+        // Extract genres and populate dropdown
+        extractAllGenres();
+        populateGenreDropdown();
+        
+        // Apply any existing filters
+        applyFilters();
         
         renderPosts(currentPage);
         renderPagination();
@@ -373,24 +566,18 @@ async function loadPosts() {
     }
 }
 
-// Enhanced function to strip HTML and create plain text preview
 function createTextPreview(html, maxLines = 3) {
     if (!html) return '';
     
-    // Create temporary element to parse HTML
     const temp = document.createElement('div');
     temp.innerHTML = html;
     
-    // Get plain text
     const text = temp.textContent || temp.innerText || '';
-    
-    // Split into lines and take first maxLines
     const lines = text.split('\n').filter(line => line.trim() !== '');
     const previewLines = lines.slice(0, maxLines);
     
     const preview = previewLines.join(' ');
     
-    // If text is too long, truncate it
     if (preview.length > 150) {
         return preview.substring(0, 147) + '...';
     }
@@ -398,14 +585,12 @@ function createTextPreview(html, maxLines = 3) {
     return preview;
 }
 
+// ==================== UPDATED RENDER POSTS FUNCTION ====================
 function renderPosts(page) {
     const list = document.getElementById("postList");
     list.innerHTML = "";
     
-    // Determine which posts to show
-    const postsToShow = isSearching ? filteredPosts : allPosts;
-    
-    // Calculate start and end indices
+    const postsToShow = filteredPosts;
     const startIndex = (page - 1) * postsPerPage;
     const endIndex = Math.min(startIndex + postsPerPage, postsToShow.length);
     const pagePosts = postsToShow.slice(startIndex, endIndex);
@@ -417,25 +602,34 @@ function renderPosts(page) {
     }
 
     if (pagePosts.length === 0) {
-        if (isSearching) {
-        list.innerHTML = `
+        if (isSearching || selectedGenre) {
+            let message = '';
+            if (isSearching && selectedGenre) {
+                message = 'No posts match both your search term and selected genre.';
+            } else if (isSearching) {
+                message = 'No results found for your search term.';
+            } else if (selectedGenre) {
+                message = `No posts found in the "${selectedGenre}" genre.`;
+            }
+            
+            list.innerHTML = `
             <div class="empty-state">
-            <i class="fas fa-search fa-3x mb-4"></i>
-            <h3>No results found</h3>
-            <p>Try a different search term or clear the search.</p>
-            <button class="btn btn-primary btn-custom btn-primary-custom mt-3" onclick="clearSearch()">
-                <i class="fas fa-times me-2"></i>Clear Search
-            </button>
+                <i class="fas fa-search fa-3x mb-4"></i>
+                <h3>No results found</h3>
+                <p>${message}</p>
+                <button class="btn btn-primary btn-custom btn-primary-custom mt-3" onclick="clearAllFilters()">
+                    <i class="fas fa-times me-2"></i>Clear All Filters
+                </button>
             </div>
-        `;
+            `;
         } else {
-        list.innerHTML = `
+            list.innerHTML = `
             <div class="empty-state">
-            <i class="fas fa-inbox"></i>
-            <h3>No posts on this page</h3>
-            <p>Try going back to page 1.</p>
+                <i class="fas fa-inbox"></i>
+                <h3>No posts on this page</h3>
+                <p>Try going back to page 1.</p>
             </div>
-        `;
+            `;
         }
         return;
     }
@@ -445,10 +639,8 @@ function renderPosts(page) {
         col.className = "col-lg-3 col-md-6 post-col";
         col.style.animationDelay = `${index * 0.1}s`;
         
-        // Create text preview for main page
         const textPreview = createTextPreview(post.Paragraph, 3);
         
-        // Format date for display
         let displayDate = post.CreatedAt;
         try {
             const date = new Date(post.CreatedAt);
@@ -463,6 +655,36 @@ function renderPosts(page) {
             console.warn('Date formatting error:', e);
         }
         
+        // Create genre badges
+        let genreBadges = '';
+        if (post.Genres) {
+            const genres = post.Genres.split(',').map(g => g.trim()).filter(g => g);
+            genres.slice(0, 2).forEach(genre => {
+                genreBadges += `<span class="genre-badge">${genre}</span>`;
+            });
+            if (genres.length > 2) {
+                genreBadges += `<span class="genre-badge">+${genres.length - 2}</span>`;
+            }
+        }
+        
+        // Create rating stars
+        let ratingStars = '';
+        if (post.Rating && parseFloat(post.Rating) > 0) {
+            const rating = parseFloat(post.Rating);
+            ratingStars = '<div class="rating-mini">';
+            for (let i = 1; i <= 5; i++) {
+                if (i <= rating) {
+                    ratingStars += '<i class="fas fa-star"></i>';
+                } else if (i - 0.5 <= rating) {
+                    ratingStars += '<i class="fas fa-star-half-alt"></i>';
+                } else {
+                    ratingStars += '<i class="far fa-star"></i>';
+                }
+            }
+            ratingStars += ` <span class="rating-text">${rating.toFixed(1)}</span>`;
+            ratingStars += '</div>';
+        }
+        
         col.innerHTML = `
         <div class="post-card">
             <img src="${post.ImageURL || 'https://via.placeholder.com/400x300?text=No+Image'}" 
@@ -470,19 +692,32 @@ function renderPosts(page) {
                 alt="${post.Title || 'Post Image'}"
                 onerror="this.src='https://via.placeholder.com/400x300?text=Image+Error'">
             <div class="card-body">
-            <h5 class="post-title">${post.Title || 'Untitled Post'}</h5>
-            <div class="truncate">${textPreview || 'No content available'}</div>
-            <div class="post-meta">
-                <i class="far fa-calendar me-1"></i> ${displayDate}
-            </div>
-            <div class="d-flex flex-wrap gap-2">
-                <a href="?post=${post.ID}" class="btn btn-primary btn-custom btn-primary-custom btn-sm">
-                <i class="fas fa-play-circle me-1"></i>Watch Now
-                </a>
-                <button class="btn btn-secondary btn-custom btn-secondary-custom btn-sm" onclick="sharePost('${post.ID}')">
-                <i class="fas fa-share-alt me-1"></i>Share
-                </button>
-            </div>
+                <h5 class="post-title">${post.Title || 'Untitled Post'}</h5>
+                
+                ${ratingStars ? `
+                <div class="post-rating mb-2">
+                    ${ratingStars}
+                </div>
+                ` : ''}
+                
+                ${genreBadges ? `
+                <div class="post-genres mb-2">
+                    ${genreBadges}
+                </div>
+                ` : ''}
+                
+                <div class="truncate">${textPreview || 'No content available'}</div>
+                <div class="post-meta">
+                    <i class="far fa-calendar me-1"></i> ${displayDate}
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="?post=${post.ID}" class="btn btn-primary btn-custom btn-primary-custom btn-sm">
+                    <i class="fas fa-play-circle me-1"></i>Watch Now
+                    </a>
+                    <button class="btn btn-secondary btn-custom btn-secondary-custom btn-sm" onclick="sharePost('${post.ID}')">
+                    <i class="fas fa-share-alt me-1"></i>Share
+                    </button>
+                </div>
             </div>
         </div>
         `;
@@ -492,7 +727,7 @@ function renderPosts(page) {
 
 function renderPagination() {
     const pagination = document.getElementById("pagination");
-    const postsToShow = isSearching ? filteredPosts : allPosts;
+    const postsToShow = filteredPosts;
     
     if (postsToShow.length <= postsPerPage) {
         pagination.style.display = "none";
@@ -502,7 +737,6 @@ function renderPagination() {
     pagination.style.display = "flex";
     const totalPages = Math.ceil(postsToShow.length / postsPerPage);
     
-    // Ensure current page is valid
     if (currentPage > totalPages) {
         currentPage = totalPages;
     }
@@ -587,7 +821,6 @@ function renderPagination() {
     `;
     paginationList.appendChild(nextItem);
     
-    // Add event listeners
     document.querySelectorAll(".pagination-btn").forEach(btn => {
         btn.addEventListener("click", function(e) {
             e.preventDefault();
@@ -603,7 +836,7 @@ function navigateToPage(page) {
             currentPage--;
         }
     } else if (page === "next") {
-        const postsToShow = isSearching ? filteredPosts : allPosts;
+        const postsToShow = filteredPosts;
         const totalPages = Math.ceil(postsToShow.length / postsPerPage);
         if (currentPage < totalPages) {
             currentPage++;
@@ -612,7 +845,6 @@ function navigateToPage(page) {
         currentPage = parseInt(page);
     }
     
-    // Update URL without reloading the page
     const url = new URL(window.location);
     url.searchParams.set('page', currentPage);
     window.history.pushState({}, '', url);
@@ -622,11 +854,11 @@ function navigateToPage(page) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// ==================== SINGLE POST FUNCTIONS ====================
 function loadSinglePost(postId) {
     const post = postsCache.find(p => p.ID == postId);
     
     if (!post) {
-        // If post not in cache, try to fetch it
         fetch(`${API_URL}?action=getPosts`)
         .then(res => res.json())
         .then(posts => {
@@ -671,7 +903,6 @@ function showPostNotFound() {
 function displaySinglePost(post) {
     document.getElementById('singlePostTitle').textContent = post.Title || 'Untitled Post';
     
-    // Format date for display
     let displayDate = post.CreatedAt;
     try {
         const date = new Date(post.CreatedAt);
@@ -698,10 +929,13 @@ function displaySinglePost(post) {
         this.src = 'https://via.placeholder.com/800x400?text=Image+Error';
     };
     
-    // Display full HTML content in single post page
     document.getElementById('singlePostContent').innerHTML = post.Paragraph || '<p>No content available.</p>';
     
-    // Store trailer link and show button if exists
+    // Display genres and rating
+    displayGenres(post.Genres);
+    displayRating(post.Rating);
+    
+    // Handle trailer link
     const trailerBtn = document.getElementById('singlePostTrailerBtn');
     if (post.TrailerLink && post.TrailerLink.trim() !== '') {
         currentTrailerLink = post.TrailerLink;
@@ -711,7 +945,7 @@ function displaySinglePost(post) {
         trailerBtn.style.display = "none";
     }
     
-    // Show Watch Now button if download link exists
+    // Handle watch button
     const watchBtn = document.getElementById('singlePostWatch');
     if (post.DownloadLink && post.DownloadLink.trim() !== '') {
         watchBtn.style.display = "inline-block";
@@ -720,13 +954,11 @@ function displaySinglePost(post) {
         watchBtn.style.display = "none";
     }
     
-    // Hide trailer container initially
     document.getElementById('trailerContainer').style.display = 'none';
-    
-    // Update page title
     document.title = `${post.Title || 'Post'} - M-Movie`;
 }
 
+// ==================== SHARE FUNCTIONS ====================
 function sharePost(postId) {
     const post = postsCache.find(p => p.ID == postId);
     if (!post) return;
@@ -748,7 +980,6 @@ function sharePost(postId) {
     }
 }
 
-// Helper function to strip HTML tags for sharing
 function stripHtml(html) {
     if (!html) return '';
     const tmp = document.createElement("div");
@@ -765,7 +996,7 @@ function shareCurrentPost() {
     }
 }
 
-// Simple notification function
+// ==================== UTILITY FUNCTIONS ====================
 function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `alert alert-${type} position-fixed`;
@@ -788,28 +1019,34 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-// Initialize when page loads
+// ==================== UPDATED INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function() {
+    // Add Enter key support for search
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+    }
+    
     checkPageType();
     
-    // Handle browser back/forward buttons
     window.addEventListener('popstate', function() {
         const urlParams = new URLSearchParams(window.location.search);
         const page = parseInt(urlParams.get('page')) || 1;
         const postId = urlParams.get('post');
         
         if (postId) {
-        // Single post page
         document.getElementById('mainPage').style.display = 'none';
         document.getElementById('singlePostPage').style.display = 'block';
         loadSinglePost(postId);
         
-        // Stop auto refresh
         if (autoRefreshInterval) {
             clearInterval(autoRefreshInterval);
         }
         } else {
-        // Main page
         currentPage = page;
         document.getElementById('mainPage').style.display = 'block';
         document.getElementById('singlePostPage').style.display = 'none';
@@ -819,7 +1056,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Close trailer when clicking outside
     document.addEventListener('click', function(event) {
         const trailerContainer = document.getElementById('trailerContainer');
         const trailerBtn = document.getElementById('singlePostTrailerBtn');
@@ -832,13 +1068,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Clean up interval when page is closed
 window.addEventListener('beforeunload', function() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
     }
     
-    // Clean up YouTube player
     if (youtubePlayer && youtubePlayer.destroy) {
         youtubePlayer.destroy();
     }

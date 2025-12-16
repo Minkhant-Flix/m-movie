@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- local css  -->
   <link rel="stylesheet" href="./blogs-assets/main.css">
-
 </head>
 <body>
   <!-- Background Animation Elements -->
@@ -37,16 +36,35 @@
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-          <!-- Search Bar -->
-          <div class="d-flex ms-auto me-3">
-            <div class="input-group search-container">
-              <input type="text" id="searchInput" class="form-control search-input" placeholder="Search movies...">
-              <button class="btn btn-outline-light search-btn" onclick="performSearch()">
-                <i class="fas fa-search"></i>
+          <!-- Search Bar and Genre Filter Container -->
+          <div class="d-flex ms-auto me-3 align-items-center search-genre-container">
+            <!-- Genre Filter Dropdown -->
+            <div class="dropdown me-3">
+              <button class="btn btn-outline-light dropdown-toggle genre-filter-btn" type="button" id="genreDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-film me-1"></i>Movie Genres
               </button>
-              <button class="btn btn-outline-light search-clear" onclick="clearSearch()" style="display: none;">
-                <i class="fas fa-times"></i>
-              </button>
+              <ul class="dropdown-menu genre-dropdown-menu" id="genreDropdownMenu">
+                <li><a class="dropdown-item genre-filter-item" href="#" data-genre="all">All Genres</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <!-- Genre items will be dynamically added here -->
+                <div class="loading-genres">
+                  <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                  <span>Loading genres...</span>
+                </div>
+              </ul>
+            </div>
+            
+            <!-- Search Bar -->
+            <div class="d-flex">
+              <div class="input-group search-container">
+                <input type="text" id="searchInput" class="form-control search-input" placeholder="Search movies...">
+                <button class="btn btn-outline-light search-btn" onclick="performSearch()">
+                  <i class="fas fa-search"></i>
+                </button>
+                <button class="btn btn-outline-light search-clear" onclick="clearSearch()" style="display: none;">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
             </div>
           </div>
           
@@ -64,6 +82,23 @@
       <div class="text-center mb-5">
         <h1 class="page-title">M-Movie</h1>
         <p class="lead text-white">မည်သည့် Member ကြေး Group ဝင်ကြေးများ ပေးစရာမလိုပဲ M-Movie Telegram Channel မှာ ရုပ်ရှင်ဇာတ်ကားကောင်းများကို ဝင်ရောက်ကြည့်နိုင်ပါပြီ။</p>
+      </div>
+      
+      <!-- Active Filters Indicator -->
+      <div id="activeFilters" class="mb-4" style="display: none;">
+        <div class="alert alert-info d-flex justify-content-between align-items-center">
+          <div>
+            <span id="activeFiltersText"></span>
+          </div>
+          <div>
+            <button class="btn btn-sm btn-outline-dark me-2" onclick="clearGenreFilter()" id="clearGenreFilterBtn" style="display: none;">
+              <i class="fas fa-times me-1"></i>Clear Genre
+            </button>
+            <button class="btn btn-sm btn-outline-dark" onclick="clearAllFilters()">
+              <i class="fas fa-times me-1"></i>Clear All
+            </button>
+          </div>
+        </div>
       </div>
       
       <!-- Search Results Indicator -->
@@ -115,7 +150,7 @@
             <div class="social-links">
               <a href="https://www.facebook.com/m.movie.channel" class="text-white me-3" target="_blank"><i class="fab fa-facebook-f"></i></a>
               <a href="https://t.me/m_movie_channel" class="text-white me-3" target="_blank"><i class="fab fa-telegram"></i></a>
-              <a href="https://m-movie.myangateway.site" class="text-white" target="_blank"><i class="fas fa-globe"></i></a>
+              <a href="https://mmovie.myangateway.site" class="text-white" target="_blank"><i class="fas fa-globe"></i></a>
             </div>
           </div>
         </div>
@@ -145,6 +180,21 @@
             </div>
             <div class="trailer-video-wrapper">
               <div id="trailerVideo"></div>
+            </div>
+          </div>
+          
+          <!-- Genres Display -->
+          <div id="genresContainer" class="genres-container mb-4" style="display: none;">
+            <h4><i class="fas fa-tags me-2"></i>Genres</h4>
+            <div class="genres-tags" id="postGenres"></div>
+          </div>
+          
+          <!-- Rating Display -->
+          <div id="ratingContainer" class="rating-container mb-4" style="display: none;">
+            <h4><i class="fas fa-star me-2"></i>Rating</h4>
+            <div class="rating-display">
+              <div class="rating-stars" id="postRatingStars"></div>
+              <span class="rating-text" id="postRatingText"></span>
             </div>
           </div>
           
